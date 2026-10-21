@@ -1,0 +1,13 @@
+version: 2
+updates:
+  # Pinned action SHAs in the workflows.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  # Digest-pinned base and toolchain images. Downloaded binaries are pinned by
+  # checksum in download.py and are updated by hand together with smoke.sh.
+  - package-ecosystem: docker
+    directory: /control
+    schedule:
+      interval: weekly
