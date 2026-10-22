@@ -17,6 +17,16 @@ case "${1:?tier required}" in
     helm create "$HOME/chart" >/dev/null
     helm template example "$HOME/chart" >/dev/null
     ;;
+  agent)
+    kubectl version --client
+    helm version --short
+    k9s version
+    helm create "$HOME/chart" >/dev/null
+    helm template example "$HOME/chart" >/dev/null
+    kubectl-ai version
+    k8sgpt version
+    kubernetes-mcp-server --version
+    ;;
   docker)
     docker --version
     docker compose version

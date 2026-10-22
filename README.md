@@ -8,7 +8,7 @@ CI workflow.
 
 | Directory | Image | Purpose |
 | --- | --- | --- |
-| [`control/`](control/) | `ghcr.io/epr-consulting/lab-control` | The learner's terminal pod (k8s, docker, linux and dev tiers) |
+| [`control/`](control/) | `ghcr.io/epr-consulting/lab-control` | The learner's terminal pod (k8s, agent, docker, linux and dev tiers) |
 | [`cli/`](cli/) | `ghcr.io/epr-consulting/lab-cli` | The vCluster and Helm CLIs the lab worker runs, rebuilt with a patched Go toolchain |
 
 ## Tools, never content
