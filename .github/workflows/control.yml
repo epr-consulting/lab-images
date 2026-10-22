@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        tier: [k8s, docker, linux, dev]
+        tier: [k8s, agent, docker, linux, dev]
         include:
           - arch: amd64
             runner: ubuntu-24.04
@@ -81,7 +81,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Assemble tested multi-platform releases
         run: |
-          for tier in k8s docker linux dev; do
+          for tier in k8s agent docker linux dev; do
             image="ghcr.io/epr-consulting/lab-control:$tier-$GITHUB_SHA"
             docker buildx imagetools create --tag "$image" "$image-amd64" "$image-arm64"
             docker buildx imagetools inspect "$image" >> "$GITHUB_STEP_SUMMARY"

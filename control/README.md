@@ -1,11 +1,12 @@
 # lab-control
 
 These are the images for the learner's terminal pod (the "control pod") in a
-MyLabSkills lab session. Four Dockerfile targets ship preinstalled tools:
+MyLabSkills lab session. Five Dockerfile targets ship preinstalled tools:
 
 | Target | Tools |
 | --- | --- |
 | `k8s` | kubectl 1.35.8, Helm 3.22.0, k9s 0.51.0, vim |
+| `agent` | everything in `k8s`, plus kubectl-ai 0.0.31, k8sgpt 0.4.41, kubernetes-mcp-server 0.0.67 |
 | `docker` | Docker CLI 29, bundled Compose and Buildx plugins |
 | `linux` | bash, systemd tools, iproute2, DNS/network utilities |
 | `dev` | code-server 4.137.0, Go 1.27, Python 3.13, Node 24, Rust 1.98.1 |
@@ -40,9 +41,19 @@ docker run --rm --read-only --user 1000:1000 --cap-drop ALL \
   control-test:k8s control-smoke k8s
 ```
 
-The `k8s` smoke test is also the tool contract for labs. The control image
+The `k8s` smoke test is also the tool contract for labs, and the `agent` tier
+repeats it. The control image
 is session tooling, so changing it never re-qualifies published labs. A new
 image must therefore still provide every tool the smoke test checks.
+
+## Agent tier
+
+The `agent` tier adds AI-assisted Kubernetes tools. They are tools only: no
+model, API key or endpoint is built in. The environment supplies the model
+endpoint and credentials at run time, through the environment variables and
+flags each tool documents (kubectl-ai `--llm-provider` and provider variables,
+k8sgpt `auth add --baseurl --model --password`). Nothing in the image
+contacts a model unless a learner or lab starts one of these tools.
 
 ## What these images do not do
 

@@ -32,6 +32,11 @@ RUN python3 /download.py k8s "$TARGETARCH" /out
 FROM base AS k8s
 COPY --from=kubernetes-downloads /out/ /usr/local/bin/
 
+FROM downloads AS agent-downloads
+RUN python3 /download.py agent "$TARGETARCH" /out
+FROM base AS agent
+COPY --from=agent-downloads /out/ /usr/local/bin/
+
 FROM base AS docker
 COPY --from=docker-tools /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=docker-tools /usr/local/libexec/docker/cli-plugins/ /usr/local/libexec/docker/cli-plugins/
