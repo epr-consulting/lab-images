@@ -27,6 +27,27 @@ the images be public and pulled anonymously by digest.
   MyLabSkills platform selects the digest it runs, and a digest only reaches
   an environment once it is selected there.
 
+## Testing an unpublished image locally
+
+A change can be tested end to end on the MyLabSkills local stack before CI
+publishes it. epr-consulting/dev-tools builds the image from this checkout (or a
+branch, tag or full commit), runs the tier's smoke test under the control pod's
+security contract, and pushes it to a local registry that the local lab node
+pulls from by digest, like GHCR. From a dev-tools checkout next to this one:
+
+```sh
+task labs:control-image LAB_IMAGES=../lab-images -- k8s     # prints registry.local/epr/lab-control@sha256:<digest>
+task labs:override -- control_image=registry.local/epr/lab-control@sha256:<digest>
+task dev:up                                                 # the learner's terminal now runs it
+task labs:override -- --clear && task dev:up                # back to the pinned image
+```
+
+The backend's worker and journey fixtures take the same image with
+`LAB_CONTROL_IMAGE=registry.local/epr/lab-control@sha256:<digest>`. The
+dev-tools README ("Local images") has the details. Once CI publishes the image,
+the platform selects the published digest, the backend pins it, and the local
+override is cleared.
+
 ## Adding an image
 
 Create a directory with a `Dockerfile` (pinned by digest and checksum), a

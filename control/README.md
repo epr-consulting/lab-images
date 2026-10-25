@@ -24,7 +24,9 @@ smoke tests with it.
 CI builds and smoke-tests each target on native AMD64 and ARM64 runners. Pull
 requests build without publishing. A push to `main` publishes
 `ghcr.io/epr-consulting/lab-control:<tier>-<full-commit-sha>` as a
-multi-platform image. Deployments use the manifest digest, never a tag.
+multi-platform image. Deployments use the manifest digest, never a tag. To run
+a tier on the local MyLabSkills stack before it is published, see [testing an
+unpublished image locally](../README.md#testing-an-unpublished-image-locally).
 
 ## Security contract
 
