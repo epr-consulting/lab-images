@@ -12,6 +12,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && groupadd --gid 1000 student \
     && useradd --uid 1000 --gid 1000 --home-dir /tmp/student --shell /bin/bash student
 RUN ln -s /usr/bin/vim.tiny /usr/local/bin/vim
+# Interactive bash keeps the learner's command history in a bounded file in /tmp.
+COPY history.bash /etc/mylabskills/history.bash
+RUN printf '\n. /etc/mylabskills/history.bash\n' >> /etc/bash.bashrc
 # Backend mounts only /tmp writable. Shells/tools must not try to modify /root.
 ENV HOME=/tmp/student XDG_CONFIG_HOME=/tmp/student/.config XDG_CACHE_HOME=/tmp/student/.cache \
     XDG_DATA_HOME=/tmp/student/.local/share TERM=xterm-256color

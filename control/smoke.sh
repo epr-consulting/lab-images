@@ -9,6 +9,24 @@ if touch /usr/local/should-be-readonly 2>/dev/null; then
 fi
 bash --version >/dev/null
 vim --version >/dev/null
+# The learner's shell history: each finished command after its time, never
+# its output, not a command typed after a space, "!" kept literal, and the
+# file under 64 KiB.
+history=/tmp/.mylabskills_history
+rm -f "$history"
+printf '%s\n' 'echo smoke-command' ' echo smoke-hidden' 'printf "%s-%s\n" smoke output' 'echo "bang!"' |
+  bash -i >/dev/null 2>&1
+grep -qxF 'echo smoke-command' "$history"
+grep -qxF 'printf "%s-%s\n" smoke output' "$history"
+grep -qxF 'echo "bang!"' "$history"
+grep -qx '#[0-9]*' "$history"
+if grep -q -e smoke-hidden -e smoke-output "$history"; then
+  echo 'Shell history holds a space-prefixed command or command output' >&2
+  exit 1
+fi
+seq -f "echo %0300g" 1 500 | bash -i >/dev/null 2>&1
+(( $(stat -c %s "$history") <= 65536 ))
+grep -qx 'echo 0*500' "$history"
 case "${1:?tier required}" in
   k8s)
     kubectl version --client

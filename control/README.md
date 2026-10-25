@@ -46,6 +46,21 @@ repeats it. The control image
 is session tooling, so changing it never re-qualifies published labs. A new
 image must therefore still provide every tool the smoke test checks.
 
+## Shell history
+
+Every tier configures interactive bash (`history.bash`, sourced by
+`/etc/bash.bashrc`) to append each finished command to
+`/tmp/.mylabskills_history`, after a `#<epoch seconds>` line. Only the
+commands are written, never their output. A command typed after a space is not
+recorded, history expansion is off (a `!` means what it means under
+`/bin/sh`), and the file is cut to its last 32 KiB once it passes 64 KiB. It
+lives in the pod's `/tmp`, so it ends with the session.
+
+The backend starts the learner's terminal as `bash -i` and reads the end of
+this file only when the learner shares their recent commands with an AI hint
+(epr-consulting/backend#370); the path is part of that contract. The smoke
+test checks the hook in every tier.
+
 ## Agent tier
 
 The `agent` tier adds AI-assisted Kubernetes tools. They are tools only: no
