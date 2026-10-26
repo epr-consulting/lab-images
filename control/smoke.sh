@@ -116,13 +116,15 @@ KUBECONFIG_EOF
   fi
   # A second terminal keeps the copy, with the learner's namespace.
   [[ $(KUBECONFIG=$ro/config bash -ic 'echo "$KUBECONFIG"; kubectl config view --minify -o jsonpath="{..namespace}"' 2>/dev/null) == "$HOME/.kube/config"$'\n'demo ]]
-  # A Secret that fills in after the shell started is copied at a later prompt,
-  # and the prompt shows the context and namespace.
+  # A Secret that fills in after the shell started is copied at a later prompt.
+  # The prompt shows the namespace, and the context too once there are two.
   rm -rf "$HOME/.kube"
   prompts=$(printf '%s\n' "mkdir -p $late && cp $ro/config $late/config" 'echo "kubeconfig=$KUBECONFIG"' \
-    'kubectl config set-context --current --namespace=late' true |
+    'kubectl config set-context --current --namespace=late' true \
+    'kubectl config set-context other --cluster=smoke --user=smoke' true |
     KUBECONFIG=$late/config bash -i 2>&1)
   [[ $prompts == *"kubeconfig=$HOME/.kube/config"* ]]
+  [[ $prompts == *'(late)'* ]]
   [[ $prompts == *'(smoke:late)'* ]]
   # The prompt reads the kubeconfig again only when its mtime changes: one call
   # for the namespace change below, none for the prompts around it.

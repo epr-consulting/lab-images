@@ -27,11 +27,14 @@ __mylabskills_kubeconfig() {
 	[[ -s $copy ]] && export KUBECONFIG=$copy
 }
 
-# The prompt shows the current context and namespace. One kubectl call reads
-# them, and only when the kubeconfig's mtime has changed since the last prompt.
+# The prompt shows the namespace, and the context as well once the kubeconfig
+# has more than one: a session's own context has a long generated name. One
+# kubectl call reads them, and only when the kubeconfig's mtime has changed
+# since the last prompt.
 __mylabskills_kube_prompt() {
 	__mylabskills_kubeconfig
-	local file=${KUBECONFIG:-$HOME/.kube/config} stamp info ns
+	local file=${KUBECONFIG:-$HOME/.kube/config} stamp info current name ns namespace=
+	local -i contexts=0
 	if [[ ! -s $file ]]; then
 		__mylabskills_kube= __mylabskills_kube_seen=
 		return 0
@@ -40,10 +43,20 @@ __mylabskills_kube_prompt() {
 	[[ $stamp == "${__mylabskills_kube_seen-}" ]] && return 0
 	__mylabskills_kube_seen=$stamp
 	__mylabskills_kube=
-	info=$(kubectl config view --minify -o jsonpath='{.current-context}{"\t"}{.contexts[0].context.namespace}' 2>/dev/null) || return 0
-	[[ -n $info ]] || return 0
-	ns=${info#*$'\t'}
-	__mylabskills_kube=" (${info%%$'\t'*}:${ns:-default})"
+	info=$(kubectl config view -o jsonpath='{.current-context}{"\n"}{range .contexts[*]}{.name}{"\t"}{.context.namespace}{"\n"}{end}' 2>/dev/null) || return 0
+	{
+		read -r current
+		while IFS=$'\t' read -r name ns; do
+			contexts+=1
+			[[ $name == "$current" ]] && namespace=$ns
+		done
+	} <<<"$info"
+	[[ -n $current ]] || return 0
+	if ((contexts > 1)); then
+		__mylabskills_kube=" ($current:${namespace:-default})"
+	else
+		__mylabskills_kube=" (${namespace:-default})"
+	fi
 }
 
 __mylabskills_kubeconfig

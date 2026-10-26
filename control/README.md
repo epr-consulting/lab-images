@@ -82,8 +82,10 @@ Where kubectl is installed (`k8s` and `agent`):
   `kubectl config set-context --current --namespace=x` works. Each prompt tries
   again until the Secret has content. Another terminal uses the copy that is
   there, with the learner's changes. The mounted file is never changed.
-- The prompt shows `(context:namespace)`. It reads them with one kubectl call,
-  and only when the kubeconfig's mtime has changed.
+- The prompt shows the namespace, as `(default)`, and `(context:namespace)`
+  once the kubeconfig has more than one context: a session's own context has
+  a long generated name. It reads them with one kubectl call, and only when the
+  kubeconfig's mtime has changed.
 - kubecolor is installed and off, so `kubectl` behaves as in the exam. To
   colour a session, run `alias kubectl=kubecolor`; `k` follows it.
 
