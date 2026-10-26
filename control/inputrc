@@ -1,0 +1,10 @@
+# The learner's readline settings (epr-consulting/lab-images#12). The image sets
+# INPUTRC to this file, which keeps the system file where there is one and the
+# learner's own ~/.inputrc last.
+$include /etc/inputrc
+set show-all-if-ambiguous on
+set completion-ignore-case on
+set colored-stats on
+set colored-completion-prefix on
+set mark-symlinked-directories on
+$include ~/.inputrc
