@@ -27,6 +27,14 @@ fi
 seq -f "echo %0300g" 1 500 | bash -i >/dev/null 2>&1
 (( $(stat -c %s "$history") <= 65536 ))
 grep -qx 'echo 0*500' "$history"
+# Workspace files (backend #226): the platform writes them with install from
+# stdin and reads them back with a bounded head -c, never through a shell, in
+# the student's home.
+[[ $HOME == /tmp/student ]]
+printf 'smoke-file\n' | install -D -T -m 0640 /dev/stdin "$HOME/workspace/a/b.txt"
+[[ $(stat -c %a "$HOME/workspace/a/b.txt") == 640 ]]
+[[ $(head -c 65537 "$HOME/workspace/a/b.txt") == smoke-file ]]
+rm -rf "$HOME/workspace"
 case "${1:?tier required}" in
   k8s)
     kubectl version --client
