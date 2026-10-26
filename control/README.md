@@ -17,7 +17,8 @@ Base and toolchain images are pinned by multi-architecture digest. Downloaded
 binaries are pinned by per-architecture checksum. Debian packages take the
 current security updates at build time, and the published image digest fixes
 the resulting contents. When you upgrade a pin, upgrade both architectures'
-smoke tests with it.
+smoke tests with it. Dependabot proposes the image updates weekly, once a
+release is 7 days old; a new Node LTS line is moved by hand.
 
 ## CI and publishing
 

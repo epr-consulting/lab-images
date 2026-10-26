@@ -1,13 +1,31 @@
 version: 2
 updates:
-  # Pinned action SHAs in the workflows.
+  # Pinned action SHAs in the workflows. Minor and patch updates come as one PR.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore(deps)
+    groups:
+      actions-minor-and-patch:
+        update-types: [minor, patch]
   # Digest-pinned base and toolchain images. Downloaded binaries are pinned by
   # checksum in download.py and are updated by hand together with smoke.sh.
+  # cli/ is left out on purpose: its reproducible build pins the binaries'
+  # checksums, so its Go image moves by hand (cli/README.md).
   - package-ecosystem: docker
     directory: /control
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore(deps)
+    ignore:
+      # Node stays on an LTS line; the next one is moved by hand, since a
+      # major update would also offer the odd-numbered, short-lived releases.
+      - dependency-name: node
+        update-types: [version-update:semver-major]
