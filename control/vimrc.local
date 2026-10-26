@@ -1,4 +1,6 @@
 " The learner's vim defaults, read by /etc/vim/vimrc.
+" The platform's terminal is dark.
+set background=dark
 syntax on
 filetype plugin indent on
 set backspace=indent,eol,start

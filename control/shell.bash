@@ -15,4 +15,5 @@ alias ls='ls --color=auto'
 alias grep='grep --color=auto'
 export LESS=-R
 # The coloured prompt has room for what kube.bash puts in __mylabskills_kube.
-PS1='\[\e[1;32m\]\u@\h\[\e[0m\]:\[\e[1;34m\]\w\[\e[33m\]${__mylabskills_kube}\[\e[0m\]\$ '
+# The pod's hostname is a session id, so the prompt names the machine "lab".
+PS1='\[\e[1;32m\]\u@lab\[\e[0m\]:\[\e[1;34m\]\w\[\e[33m\]${__mylabskills_kube}\[\e[0m\]\$ '

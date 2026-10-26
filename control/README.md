@@ -59,7 +59,8 @@ the files in `/etc/mylabskills/`, so a learner finds this:
 
 - The shell starts in `~`. It creates `~` if the empty `/tmp` has no `student`
   directory yet, and moves only when it started in `/tmp`.
-- The prompt, `ls` and `grep` are coloured, and `LESS=-R`. The image sets
+- The prompt reads `student@lab:~`, since the pod's hostname is a session id.
+  The prompt, `ls` and `grep` are coloured, and `LESS=-R`. The image sets
   `LANG=C.UTF-8` and `COLORTERM=truecolor`.
 - One Tab lists the matches. Completion ignores case and colours the listing.
   The settings are in `/etc/mylabskills/inputrc`, which the image's `INPUTRC`
@@ -68,8 +69,8 @@ the files in `/etc/mylabskills/`, so a learner finds this:
   tools that write their own, generated at build time with no network:
   kubectl, helm and k9s in `k8s`, those and the agent tools in `agent`, docker
   in `docker`, and rustup, cargo and npm in `dev`.
-- vim has syntax highlighting, filetype indent and 2-space YAML
-  (`/etc/vim/vimrc.local`). `vi` is the same vim. nano highlights YAML.
+- vim has syntax highlighting for a dark background, filetype indent and
+  2-space YAML (`/etc/vim/vimrc.local`). `vi` is the same vim. nano highlights YAML.
 
 Where kubectl is installed (`k8s` and `agent`):
 

@@ -58,7 +58,7 @@ rmdir /tmp/smoke-home
 aliases=$(bash -ic alias 2>/dev/null)
 [[ $aliases == *"alias ls='ls --color=auto'"* && $aliases == *"alias grep='grep --color=auto'"* ]]
 [[ $(bash -ic 'echo "$LESS $LANG $COLORTERM ${LS_COLORS:+ls-colors}"' 2>/dev/null) == '-R C.UTF-8 truecolor ls-colors' ]]
-[[ $(bash -ic 'echo "$PS1"' 2>/dev/null) == *'\[\e[1;32m\]'* ]]
+[[ $(bash -ic 'echo "$PS1"' 2>/dev/null) == *'\[\e[1;32m\]\u@lab'* ]]
 readline=$(bash -ic 'bind -v' 2>/dev/null)
 for setting in show-all-if-ambiguous completion-ignore-case colored-stats \
   colored-completion-prefix mark-symlinked-directories; do
