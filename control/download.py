@@ -20,6 +20,10 @@ CHECKSUMS = {
         "amd64": "c3752ad51a5a4015a113819c4eeb6e55a4d0e4b8e652494797532f6fc8161dd7",
         "arm64": "3ee05c82e5f9198928a4e86133608ba6a2c10a2244d6a7789e820f78319d640c",
     },
+    "kubecolor": {
+        "amd64": "87289f8641ba18f4cb491ad6b30baa0da5f769c688aa7ce05489604da6099b28",
+        "arm64": "8a53d33769dc2c984338973f6490ffdad60f130d60d172bef8109a76332c0c60",
+    },
     "kubectl-ai": {
         "amd64": "872ef891232b01772c46a54b1866b383e043100e3806835158187c603eb490d1",
         "arm64": "c2eb7fb99bf5217968a505ab38b0a230d86d1581957ccdda66167020b114d90d",
@@ -38,7 +42,7 @@ CHECKSUMS = {
     },
 }
 
-K8S_TOOLS = ("kubectl", "helm", "k9s")
+K8S_TOOLS = ("kubectl", "helm", "k9s", "kubecolor")
 TOOLS = {
     "k8s": K8S_TOOLS,
     "agent": K8S_TOOLS + ("kubectl-ai", "k8sgpt", "kubernetes-mcp-server"),
@@ -64,6 +68,10 @@ def main():
         "k9s": (
             f"https://github.com/derailed/k9s/releases/download/v0.51.0/k9s_Linux_{arch}.tar.gz",
             "k9s",
+        ),
+        "kubecolor": (
+            f"https://github.com/kubecolor/kubecolor/releases/download/v0.8.0/kubecolor_0.8.0_linux_{arch}.tar.gz",
+            "kubecolor",
         ),
         "kubectl-ai": (
             f"https://github.com/GoogleCloudPlatform/kubectl-ai/releases/download/v0.0.31/kubectl-ai_Linux_{'x86_64' if arch == 'amd64' else arch}.tar.gz",

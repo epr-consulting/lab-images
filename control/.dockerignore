@@ -2,4 +2,8 @@
 !Dockerfile
 !download.py
 !history.bash
+!inputrc
+!kube.bash
+!shell.bash
 !smoke.sh
+!vimrc.local
