@@ -9,7 +9,7 @@ MyLabSkills lab session. Five Dockerfile targets ship preinstalled tools:
 | `agent` | everything in `k8s`, plus kubectl-ai 0.0.31, k8sgpt 0.4.41, kubernetes-mcp-server 0.0.67 |
 | `docker` | Docker CLI 29, bundled Compose and Buildx plugins |
 | `linux` | bash, systemd tools, iproute2, DNS/network utilities |
-| `dev` | code-server 4.137.0, Go 1.27, Python 3.13, Node 24, Rust 1.98.1 |
+| `dev` | code-server 4.137.0, Go 1.27, Python 3.13, Node 26, Rust 1.98.1 |
 
 ## Pins
 
