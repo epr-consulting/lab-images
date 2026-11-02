@@ -10,7 +10,8 @@ set -euo pipefail
 runner=/usr/local/bin/mls-hidden-test
 workspace=/tmp/student/workspace
 scratch=$(mktemp -d /tmp/hidden-test-smoke.XXXXXX)
-trap 'rm -rf "$scratch"' EXIT
+# The runner makes the workspace when it is missing; the image holds none.
+trap 'rm -rf "$scratch" "$workspace"' EXIT
 
 [[ -x $runner && $(stat -c %a "$runner") == 755 ]]
 # Static: it needs no library of the image it runs in.
