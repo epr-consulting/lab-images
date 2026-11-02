@@ -1,0 +1,10 @@
+# The iac tier's Ansible: the community distribution, which bundles the
+# collections a project needs (ansible.posix, community.general, community.docker,
+# kubernetes.core and amazon.aws among them), because a session reaches no
+# Galaxy server. boto3 and kubernetes are the Python libraries those
+# collections import; jmespath backs the json_query filter.
+ansible==14.5.0
+boto3
+kubernetes==37.0.1
+jmespath==1.1.0
+pytest==9.1.1

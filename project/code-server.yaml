@@ -1,0 +1,5 @@
+# code-server's defaults for lab sessions. The listener, its address and its
+# authentication are the environment's to choose: nothing starts by itself, and
+# the default (a password on 127.0.0.1:8080) stays unless the environment sets it.
+disable-telemetry: true
+disable-update-check: true

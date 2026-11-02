@@ -1,0 +1,5 @@
+# The iac tier's local AWS API: Moto's own server, in a venv of its own so its
+# dependencies never constrain Ansible's.
+moto[server]==5.2.4
+# 1.13.0's wheels were uploaded after the cutoff, so only its source is locked.
+lazy-object-proxy<1.13

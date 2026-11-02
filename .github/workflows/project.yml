@@ -1,0 +1,124 @@
+name: lab-project
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'project/**'
+      # The learner's shell files, which the images take from the control directory.
+      - 'control/history.bash'
+      - 'control/shell.bash'
+      - 'control/inputrc'
+      - 'control/vimrc.local'
+      - '.github/workflows/project.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'project/**'
+      - 'control/history.bash'
+      - 'control/shell.bash'
+      - 'control/inputrc'
+      - 'control/vimrc.local'
+      - '.github/workflows/project.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: project-images-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        tier: [cicd, iac, mlops, web, mobile]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+        arch: [amd64, arm64]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4.4.0
+      - name: Build native image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: project
+          build-contexts: shell=control
+          target: ${{ matrix.tier }}
+          load: true
+          tags: project-test:${{ matrix.tier }}
+          cache-from: type=gha,scope=project-${{ matrix.tier }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=project-${{ matrix.tier }}-${{ matrix.arch }}
+      # The control pod's contract: UID/GID 1000, all capabilities dropped, a
+      # read-only root, no-new-privileges and no network. Only /tmp is writable,
+      # and it allows exec, as the pod's emptyDir does: project code (git hooks,
+      # npm scripts, test runners) runs from it, which Docker's default noexec
+      # tmpfs would refuse.
+      - name: Smoke test the security contract
+        env:
+          TIER: ${{ matrix.tier }}
+        run: |
+          docker run --rm --read-only --user 1000:1000 --cap-drop ALL \
+            --security-opt no-new-privileges --network none \
+            --tmpfs /tmp:rw,exec,nosuid,nodev,size=1g,mode=1777 \
+            "project-test:$TIER" project-smoke "$TIER"
+      # A rootless image build needs a little more than the contract: file
+      # capabilities on the id-mapping tools (so no no-new-privileges), the
+      # SETUID and SETGID capabilities, and BuildKit's documented unconfined
+      # seccomp, AppArmor and /proc settings. The runner's AppArmor policy
+      # restricts user namespaces, which this job lifts on its own VM.
+      - name: Smoke test a rootless image build
+        if: matrix.tier == 'cicd'
+        run: |
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          docker run --rm --read-only --user 1000:1000 --cap-drop ALL \
+            --cap-add SETUID --cap-add SETGID \
+            --security-opt seccomp=unconfined --security-opt apparmor=unconfined \
+            --security-opt systempaths=unconfined --network none \
+            --tmpfs /tmp:rw,exec,nosuid,nodev,size=1g,mode=1777 \
+            project-test:cicd project-smoke cicd-build
+      - name: Authenticate for main publication
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish tested architecture
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          TIER: ${{ matrix.tier }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          image="ghcr.io/epr-consulting/lab-project:$TIER-$GITHUB_SHA-$ARCH"
+          docker tag "project-test:$TIER" "$image"
+          docker push "$image"
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      packages: write
+    steps:
+      - uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4.4.0
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Assemble tested multi-platform releases
+        run: |
+          for tier in cicd iac mlops web mobile; do
+            image="ghcr.io/epr-consulting/lab-project:$tier-$GITHUB_SHA"
+            docker buildx imagetools create --tag "$image" "$image-amd64" "$image-arm64"
+            docker buildx imagetools inspect "$image" >> "$GITHUB_STEP_SUMMARY"
+          done
