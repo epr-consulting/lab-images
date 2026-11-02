@@ -35,6 +35,8 @@ printf 'smoke-file\n' | install -D -T -m 0640 /dev/stdin "$HOME/workspace/a/b.tx
 [[ $(stat -c %a "$HOME/workspace/a/b.txt") == 640 ]]
 [[ $(head -c 65537 "$HOME/workspace/a/b.txt") == smoke-file ]]
 rm -rf "$HOME/workspace"
+# The runner of hidden tests (epr-consulting/backend#486).
+hidden-test-smoke
 # Editors (epr-consulting/lab-images#12): full vim with syntax and the YAML
 # indent rules, vi as the same vim, and nano with its YAML highlighting.
 [[ $(vim --version) == *+syntax* ]]
