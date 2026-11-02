@@ -126,50 +126,74 @@ Every tier, and every tier of [lab-project](../project/README.md), has
 `/usr/local/bin/mls-hidden-test`, a small static program (Go, no dependency;
 source in [`hidden-test/`](hidden-test/)) that runs one hidden test of a lab for
 the platform (epr-consulting/backend#486). The test is its standard input and
-its arguments are the test's SHA-256 and the workspace; the platform runs it as
-`timeout -s TERM -k 2 <seconds> mls-hidden-test <sha256> <workspace>` and takes
-the verdict from its **exit status**.
+its arguments are the test's SHA-256, the workspace and the time limit in
+seconds; the platform runs it as `mls-hidden-test <sha256> <workspace>
+<seconds>` and takes the verdict from its **exit status**. Nothing stands
+between it and the container runtime, not even GNU `timeout`.
 
 A learner runs processes as the same user, who can open and write any pipe or
 file of the program through `/proc`. So the program keeps the verdict and the
 test to the channels they cannot reach (its arguments, its own memory and its
 exit status) and does this:
 
-1. It reads the test from standard input, at most 100 KiB, and closes it. More
+1. It starts its time limit over everything below: when it runs out it kills
+   the test's group and exits 124.
+2. It reads the test from standard input, at most 100 KiB, and closes it. More
    is 125.
-2. It hashes the test in-process and compares it with the digest in its
+3. It hashes the test in-process and compares it with the digest in its
    arguments before it runs anything. A test that is not the stored one is 125:
    it never runs, whatever a process of the learner's wrote into the pipe or
    took out of it.
-3. It writes the test to a `memfd` sealed against writing, growing and
+4. It writes the test to a `memfd` sealed against writing, growing and
    shrinking (`F_SEAL_WRITE`, `F_SEAL_GROW`, `F_SEAL_SHRINK`, `F_SEAL_SEAL`), and
    checks the sealed bytes against the digest again.
-4. It starts `/bin/bash /proc/self/fd/<n>` on that file in a process group of its
-   own, with standard input, output and error on `/dev/null` and the workspace as
-   its directory.
-5. On SIGTERM (also SIGINT and SIGHUP) it kills that group and exits 143.
-6. When the test ends it kills the group and exits 0 only if the test exited 0,
-   and 1 otherwise: whatever a test exits with, it cannot choose 125 or 143.
+5. It starts `/usr/local/libexec/mls-bash` in a process group of its own, with
+   standard input, output and error on `/dev/null`, the workspace as its
+   directory and the sealed file as its descriptor 3. The bash reads the test
+   from it into a variable, closes the descriptor and evals the variable
+   (`IFS= read -r -d '' t </proc/self/fd/3; exec 3<&-; eval "$t"`). The code
+   under test, which that bash starts, has no descriptor to read the test from.
+6. The kernel kills that bash if the program dies (`PR_SET_PDEATHSIG`).
+7. On SIGTERM (also SIGINT and SIGHUP) it kills the group and exits 143.
+8. When the test ends it kills the group and exits 0 only if the test exited 0,
+   and 1 otherwise: whatever a test exits with, it cannot choose 124, 125 or 143.
 
-It is also not dumpable (`PR_SET_DUMPABLE` 0), so another process of its user
-can neither open its descriptors nor memory in `/proc` nor trace it, whatever
-`kernel.yama.ptrace_scope` says. Nothing above relies on that.
+**The node must restrict ptrace** (`kernel.yama.ptrace_scope` 1 or more, the
+default of Ubuntu and of GKE, EKS and AKS node images). At 0 the code under test
+could attach to its ancestors, the bash and this program, and set the verdict.
+The program reads `/proc/sys/kernel/yama/ptrace_scope` first and, when the file
+is missing or says 0, exits 126 and says why on standard error: the check is
+unavailable on that node, never forgeable. (`fs.suid_dumpable` must not be 1,
+which is a debugging setting; its default is 0.)
 
-Exit statuses: 0 passed, 1 failed, 125 the test is not what the digest names
-(or the program was misused), 126 it could not start the test, 143 stopped. GNU
-`timeout` adds 124 and 137 around it.
+**Two files, both mode 0711 and owned by root.** `mls-hidden-test` and
+`/usr/local/libexec/mls-bash` (a copy of `/usr/bin/bash`) can be run by the
+learner but not read. The kernel makes a process non-dumpable when it runs a
+file its user cannot read, from its first instruction on, so another process of
+the same user can neither open its descriptors nor its memory in `/proc`. That
+is what keeps the code under test away from the descriptors and the memory of
+the bash and the program above it, whatever `ptrace_scope` says about tracing.
+The program is static for this reason (an execute-only file cannot load a
+library), and it also calls `prctl(PR_SET_DUMPABLE, 0)`.
 
-What remains, and the platform's docs (`backend/docs/hidden-tests.md`) say so: the
-code under test runs as the learner, can read the sealed test file through its
-own descriptor 3 while the test runs, and can read the test from the pipe in the
-moment it is delivered, which breaks the test's confidentiality, not its verdict.
-A process that leaves the test's process group on purpose (`setsid`) is not
-killed with it.
+Exit statuses: 0 passed, 1 failed, 124 the time limit ran out, 125 the test is
+not what the digest names (or the program was misused), 126 the node does not
+restrict ptrace or the test could not start, 143 stopped, 137 killed.
+
+What remains, and the platform's docs (`backend/docs/hidden-tests.md`) say so: a
+process that leaves the test's process group on purpose (`setsid`, a nested
+`set -m` shell, GNU `timeout` around a server) is not killed with it, and the
+test can be read in the moment it is delivered to the program, which breaks its
+confidentiality, not its verdict. A test's command lines are visible to the
+code under test, so a test should compare with builtins (`[ ... = ... ]`) and
+not run an external command with its secret in an argument.
 
 Its tests (`go test`, built as the `hidden-test-tests` target and run by CI as
-UID 1000) run real processes, signals and groups, including a process of the
-same user that holds and stops the program and writes to its input. `hidden-test-smoke`
-repeats the contract in every image under the pod's security contract.
+UID 1000, with the execute-only bash installed) run real processes, signals and
+groups, including a process of the same user that holds and stops the program
+and writes to its input, and code under the test that tries to trace and read its
+ancestors. `hidden-test-smoke` repeats the contract in every image under the
+pod's security contract, on a node that restricts ptrace.
 
 ## What these images do not do
 

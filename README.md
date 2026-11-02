@@ -21,7 +21,9 @@ the images be public and pulled anonymously by digest.
 
 Both control and project images also carry `mls-hidden-test`, the runner that
 gives a hidden test's verdict as its exit status, built from one source in
-[`control/hidden-test/`](control/hidden-test/).
+[`control/hidden-test/`](control/hidden-test/), and the execute-only
+`/usr/local/libexec/mls-bash` it runs the test with. Both are mode 0711: the
+learner can run them, not read them.
 
 ## Publishing and use
 

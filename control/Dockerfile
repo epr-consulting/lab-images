@@ -6,15 +6,19 @@ FROM rust:1.99.1-slim-trixie@sha256:1a939748a7cbab172de91a014e3804a97af1394a8c84
 
 # The hidden-test runner (epr-consulting/backend#486): a static program with no
 # dependency, built once here and copied into the base of every tier. The
-# project/ images build the same source from this directory.
+# project/ images build the same source from this directory. It must stay
+# static: it runs from an execute-only file, so it cannot load a library.
 FROM go-tools AS hidden-test
 WORKDIR /src
 COPY hidden-test/ /src/
 ENV GOTOOLCHAIN=local GOFLAGS="-trimpath -mod=readonly" CGO_ENABLED=0
 RUN --network=none test -z "$(gofmt -l .)" && go vet ./... \
-    && go build -ldflags='-s -w -buildid=' -o /out/mls-hidden-test .
-# Its tests, run as the learner runs: UID 1000. CI builds this target on its own.
+    && go build -ldflags='-s -w -buildid=' -o /out/mls-hidden-test . \
+    && ldd /out/mls-hidden-test 2>&1 | grep -q 'not a dynamic executable'
+# Its tests, run as the learner runs: UID 1000, with the images' execute-only
+# bash installed at its path. CI builds this target on its own.
 FROM hidden-test AS hidden-test-tests
+RUN install -D -m 0711 -o root -g root /usr/bin/bash /usr/local/libexec/mls-bash
 USER 1000:1000
 ENV HOME=/tmp GOCACHE=/tmp/gocache
 RUN --network=none --mount=type=tmpfs,target=/tmp go test -count=1 ./...
@@ -26,6 +30,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 1000 student \
     && useradd --uid 1000 --gid 1000 --home-dir /tmp/student --shell /bin/bash student
+# The bash that runs a hidden test: a copy the learner's user can execute but
+# not read, so the process it starts is not dumpable and no process of that user
+# can read its descriptors or memory (epr-consulting/backend#486).
+RUN install -D -m 0711 -o root -g root /usr/bin/bash /usr/local/libexec/mls-bash
 COPY vimrc.local /etc/vim/vimrc.local
 # Interactive bash loads bash-completion and keeps the learner's command history
 # in a bounded file in /tmp. The learner's colours, prompt, readline settings
@@ -43,9 +51,10 @@ ENV LANG=C.UTF-8 COLORTERM=truecolor INPUTRC=/etc/mylabskills/inputrc
 WORKDIR /tmp
 LABEL org.opencontainers.image.source="https://github.com/epr-consulting/lab-images"
 COPY smoke.sh /usr/local/bin/control-smoke
-# The runner of hidden tests, at a fixed path on the read-only root, and its
-# smoke test, which control-smoke runs.
-COPY --from=hidden-test --chmod=0755 /out/mls-hidden-test /usr/local/bin/mls-hidden-test
+# The runner of hidden tests, at a fixed path on the read-only root and, like
+# the bash above, executable but not readable by the learner, and its smoke
+# test, which control-smoke runs.
+COPY --from=hidden-test --chmod=0711 /out/mls-hidden-test /usr/local/bin/mls-hidden-test
 COPY --chmod=0755 hidden-test/smoke.sh /usr/local/bin/hidden-test-smoke
 USER 1000:1000
 CMD ["sleep", "infinity"]
