@@ -18,6 +18,7 @@ ARG VCLUSTER_SOURCE_SHA256=115b12724f7e68900903272b2e99757d981571242d5ed499902ab
 ARG VCLUSTER_CHART_SHA256=0e3e1df3802a1199653930cfadcf52ba309ea7d5282a1a8541452bea8a9cf707
 ARG CLI_X_NET_VERSION=v0.60.0
 ARG CLI_COMPRESS_VERSION=v1.18.7
+ARG CLI_GO_JOSE_VERSION=v4.1.6
 WORKDIR /src
 RUN test "$TARGETOS" = "linux" && \
     case "$TARGETARCH" in amd64|arm64) ;; *) exit 1 ;; esac && \
@@ -57,13 +58,24 @@ RUN test "$CLI_COMPRESS_VERSION" = "v1.18.7" && \
     rm -rf vendor/github.com/klauspost/compress && \
     cp -a "$(go env GOMODCACHE)/github.com/klauspost/compress@${CLI_COMPRESS_VERSION}" vendor/github.com/klauspost/compress && \
     test "$(go list -mod=vendor -m github.com/klauspost/compress)" = "github.com/klauspost/compress ${CLI_COMPRESS_VERSION}"
+# Patch the vendored JOSE module the same way (CVE-2026-116587: a denial of
+# service through crafted RSA parameters in a JWK). v4.1.6 has no dependencies
+# and keeps v4.1.4's Go floor, so the vendored graph stays valid.
+RUN test "$CLI_GO_JOSE_VERSION" = "v4.1.6" && \
+    test "$(go list -mod=vendor -m github.com/go-jose/go-jose/v4)" = "github.com/go-jose/go-jose/v4 v4.1.4" && \
+    (cd /tmp && GOWORK=off go mod download "github.com/go-jose/go-jose/v4@${CLI_GO_JOSE_VERSION}") && \
+    go mod edit "-require=github.com/go-jose/go-jose/v4@${CLI_GO_JOSE_VERSION}" && \
+    sed -i "s|# github.com/go-jose/go-jose/v4 v4.1.4|# github.com/go-jose/go-jose/v4 ${CLI_GO_JOSE_VERSION}|" vendor/modules.txt && \
+    rm -rf vendor/github.com/go-jose/go-jose/v4 && \
+    cp -a "$(go env GOMODCACHE)/github.com/go-jose/go-jose/v4@${CLI_GO_JOSE_VERSION}" vendor/github.com/go-jose/go-jose/v4 && \
+    test "$(go list -mod=vendor -m github.com/go-jose/go-jose/v4)" = "github.com/go-jose/go-jose/v4 ${CLI_GO_JOSE_VERSION}"
 RUN --network=none CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" \
     go build -buildvcs=false -trimpath -mod=vendor -tags embed_chart \
       -ldflags "-s -w -X main.version=${VCLUSTER_VERSION} -X github.com/loft-sh/vcluster/pkg/telemetry.SyncerVersion=${VCLUSTER_VERSION}" \
       -o /usr/local/bin/vcluster ./cmd/vclusterctl && \
     case "$TARGETARCH" in \
-      amd64) VCLUSTER_BINARY_SHA256=0c4216866e00f89b9f9b2ecd10e104c6316a4ba085eaa25f33874030adb0374c ;; \
-      arm64) VCLUSTER_BINARY_SHA256=b59d8697d06e635ab0059d9630679131eaba637f303d27099dc600f9d115c405 ;; \
+      amd64) VCLUSTER_BINARY_SHA256=fb37b896bb41129adccb1c409e53472db9703525ad4ba28ab4be66ecf5fe48ee ;; \
+      arm64) VCLUSTER_BINARY_SHA256=893cd7ec576224c815f0074b96b70e62372a9e9dd313b8d2aa441dea1b2be165 ;; \
     esac && \
     echo "$VCLUSTER_BINARY_SHA256  /usr/local/bin/vcluster" | sha256sum -c -
 
