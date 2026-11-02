@@ -120,6 +120,57 @@ flags each tool documents (kubectl-ai `--llm-provider` and provider variables,
 k8sgpt `auth add --baseurl --model --password`). Nothing in the image
 contacts a model unless a learner or lab starts one of these tools.
 
+## Hidden-test runner
+
+Every tier, and every tier of [lab-project](../project/README.md), has
+`/usr/local/bin/mls-hidden-test`, a small static program (Go, no dependency;
+source in [`hidden-test/`](hidden-test/)) that runs one hidden test of a lab for
+the platform (epr-consulting/backend#486). The test is its standard input and
+its arguments are the test's SHA-256 and the workspace; the platform runs it as
+`timeout -s TERM -k 2 <seconds> mls-hidden-test <sha256> <workspace>` and takes
+the verdict from its **exit status**.
+
+A learner runs processes as the same user, who can open and write any pipe or
+file of the program through `/proc`. So the program keeps the verdict and the
+test to the channels they cannot reach (its arguments, its own memory and its
+exit status) and does this:
+
+1. It reads the test from standard input, at most 100 KiB, and closes it. More
+   is 125.
+2. It hashes the test in-process and compares it with the digest in its
+   arguments before it runs anything. A test that is not the stored one is 125:
+   it never runs, whatever a process of the learner's wrote into the pipe or
+   took out of it.
+3. It writes the test to a `memfd` sealed against writing, growing and
+   shrinking (`F_SEAL_WRITE`, `F_SEAL_GROW`, `F_SEAL_SHRINK`, `F_SEAL_SEAL`), and
+   checks the sealed bytes against the digest again.
+4. It starts `/bin/bash /proc/self/fd/<n>` on that file in a process group of its
+   own, with standard input, output and error on `/dev/null` and the workspace as
+   its directory.
+5. On SIGTERM (also SIGINT and SIGHUP) it kills that group and exits 143.
+6. When the test ends it kills the group and exits 0 only if the test exited 0,
+   and 1 otherwise: whatever a test exits with, it cannot choose 125 or 143.
+
+It is also not dumpable (`PR_SET_DUMPABLE` 0), so another process of its user
+can neither open its descriptors nor memory in `/proc` nor trace it, whatever
+`kernel.yama.ptrace_scope` says. Nothing above relies on that.
+
+Exit statuses: 0 passed, 1 failed, 125 the test is not what the digest names
+(or the program was misused), 126 it could not start the test, 143 stopped. GNU
+`timeout` adds 124 and 137 around it.
+
+What remains, and the platform's docs (`backend/docs/hidden-tests.md`) say so: the
+code under test runs as the learner, can read the sealed test file through its
+own descriptor 3 while the test runs, and can read the test from the pipe in the
+moment it is delivered, which breaks the test's confidentiality, not its verdict.
+A process that leaves the test's process group on purpose (`setsid`) is not
+killed with it.
+
+Its tests (`go test`, built as the `hidden-test-tests` target and run by CI as
+UID 1000) run real processes, signals and groups, including a process of the
+same user that holds and stops the program and writes to its input. `hidden-test-smoke`
+repeats the contract in every image under the pod's security contract.
+
 ## What these images do not do
 
 They are client and tool images only:

@@ -7,3 +7,7 @@
 !shell.bash
 !smoke.sh
 !vimrc.local
+!hidden-test/
+!hidden-test/go.mod
+!hidden-test/*.go
+!hidden-test/smoke.sh

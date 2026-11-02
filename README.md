@@ -19,6 +19,10 @@ private artifacts and grading logic never go into an image or this
 repository; the platform delivers them at run time. That rule is what lets
 the images be public and pulled anonymously by digest.
 
+Both control and project images also carry `mls-hidden-test`, the runner that
+gives a hidden test's verdict as its exit status, built from one source in
+[`control/hidden-test/`](control/hidden-test/).
+
 ## Publishing and use
 
 - CI builds and smoke-tests every image on native AMD64 and ARM64. Pull

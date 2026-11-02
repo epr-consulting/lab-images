@@ -7,6 +7,17 @@
 #   docker buildx build --build-context shell=control --target <track> project
 FROM debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f AS debian
 
+FROM golang:1.27-trixie@sha256:9baa6b4187bbb98d240372a8a235ac0bb6b5ddd52bba1431dc2f7c0705862728 AS go-tools
+
+# The hidden-test runner (epr-consulting/backend#486): the program of the control
+# image, built from the same source, and copied into the base of every tier.
+FROM go-tools AS hidden-test
+WORKDIR /src
+COPY --from=shell hidden-test/ /src/
+ENV GOTOOLCHAIN=local GOFLAGS="-trimpath -mod=readonly" CGO_ENABLED=0
+RUN --network=none test -z "$(gofmt -l .)" && go vet ./... \
+    && go build -ldflags='-s -w -buildid=' -o /out/mls-hidden-test .
+
 FROM debian AS base
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bash bash-completion ca-certificates curl git jq less make nano openssh-client procps tini vim \
@@ -32,6 +43,10 @@ ENV HOME=/tmp/student XDG_CONFIG_HOME=/tmp/student/.config XDG_CACHE_HOME=/tmp/s
 WORKDIR /tmp
 LABEL org.opencontainers.image.source="https://github.com/epr-consulting/lab-images"
 COPY --chmod=0755 smoke.sh /usr/local/bin/project-smoke
+# The runner of hidden tests, at a fixed path on the read-only root, and its
+# smoke test, which project-smoke runs.
+COPY --from=hidden-test --chmod=0755 /out/mls-hidden-test /usr/local/bin/mls-hidden-test
+COPY --from=shell --chmod=0755 hidden-test/smoke.sh /usr/local/bin/hidden-test-smoke
 USER 1000:1000
 CMD ["sleep", "infinity"]
 

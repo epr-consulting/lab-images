@@ -20,6 +20,11 @@ colours, completion and the bounded command history the backend reads
 (epr-consulting/backend#370). Those four files are taken from `control/`, so
 they stay in one place; build with `--build-context shell=control`.
 
+Every tier also has `/usr/local/bin/mls-hidden-test`, the runner of hidden
+tests, built from [`control/hidden-test/`](../control/hidden-test/) and described
+in the [lab-control README](../control/README.md#hidden-test-runner)
+(epr-consulting/backend#486). `project-smoke` runs its smoke test.
+
 ## Tools, never content
 
 These images contain tools only. A project's starter code, tests, hidden tests,
