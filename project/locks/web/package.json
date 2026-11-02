@@ -1,0 +1,9 @@
+{
+  "name": "lab-project-web-tools",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The web tier's global test tooling. Locked with: npm install --package-lock-only --ignore-scripts --omit=peer --before=2026-10-19T00:00:00Z",
+  "dependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}

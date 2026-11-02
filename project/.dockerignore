@@ -1,0 +1,16 @@
+*
+!Dockerfile
+!download.py
+!smoke.sh
+!code-server.yaml
+!locks/
+!locks/build.txt
+!locks/ansible.txt
+!locks/moto.txt
+!locks/mlops.txt
+!locks/web/
+!locks/web/package.json
+!locks/web/package-lock.json
+!locks/mobile/
+!locks/mobile/package.json
+!locks/mobile/package-lock.json

@@ -1,0 +1,11 @@
+# The mlops tier: experiment tracking, data versioning and CPU-only
+# training libraries. Nothing here needs a GPU, and no CUDA wheel is locked.
+mlflow==3.17.1
+dvc==3.67.1
+numpy==2.5.4
+pandas==3.0.6
+scipy==1.18.1
+scikit-learn==1.9.1
+joblib==1.6.0
+# The fixed runner for hidden tests writes JUnit XML (backend#486).
+pytest==9.1.1

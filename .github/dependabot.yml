@@ -13,7 +13,9 @@ updates:
       actions-minor-and-patch:
         update-types: [minor, patch]
   # Digest-pinned base and toolchain images. Downloaded binaries are pinned by
-  # checksum in download.py and are updated by hand together with smoke.sh.
+  # checksum in download.py (control/ and project/), Python packages by hash and
+  # npm packages by integrity in project/locks/; all are updated by hand together
+  # with smoke.sh, because each pin is a release at least 14 days old.
   # cli/ is left out on purpose: its reproducible build pins the binaries'
   # checksums, so its Go image moves by hand (cli/README.md).
   - package-ecosystem: docker
@@ -29,3 +31,12 @@ updates:
       # major update would also offer the odd-numbered, short-lived releases.
       - dependency-name: node
         update-types: [version-update:semver-major]
+  # project/ has only its Debian base image to propose: its tools are pinned by hand.
+  - package-ecosystem: docker
+    directory: /project
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore(deps)

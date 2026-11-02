@@ -1,0 +1,8 @@
+# Build tools, installed first from this lock into each venv. pip is locked
+# because the one bundled with Debian's python3-venv (25.1.1) cannot connect to an
+# https:// index addressed by IP, which a lab mirror may be. A few dependencies
+# ship only as pure-Python source and build without isolation, so setuptools and
+# wheel are installed from here and never fetched unpinned.
+pip==26.2.1
+setuptools
+wheel
