@@ -6,10 +6,10 @@ set -eu
 dir=${1:?Pass the directory holding the extracted vcluster and helm}
 case $(uname -m) in
   x86_64)
-    vcluster=0c4216866e00f89b9f9b2ecd10e104c6316a4ba085eaa25f33874030adb0374c
+    vcluster=fb37b896bb41129adccb1c409e53472db9703525ad4ba28ab4be66ecf5fe48ee
     helm=7b6c0ae9b29c48ab2553b9477f92af6eebb2cbcaf37287a99c3772f9ae0ce8bf ;;
   aarch64|arm64)
-    vcluster=b59d8697d06e635ab0059d9630679131eaba637f303d27099dc600f9d115c405
+    vcluster=893cd7ec576224c815f0074b96b70e62372a9e9dd313b8d2aa441dea1b2be165
     helm=78eefeacd6222d1e4a8ce4723e6ab5d9b3625ef4ccf3e98ca0b2c7afbd503261 ;;
   *) echo 'Unsupported architecture' >&2; exit 1 ;;
 esac
