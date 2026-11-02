@@ -158,8 +158,9 @@ exit status) and does this:
 8. When the test ends it kills the group and exits 0 only if the test exited 0,
    and 1 otherwise: whatever a test exits with, it cannot choose 124, 125 or 143.
 
-**The node must restrict ptrace** (`kernel.yama.ptrace_scope` 1 or more, the
-default of Ubuntu and of GKE, EKS and AKS node images). At 0 the code under test
+**The node must restrict ptrace** (`kernel.yama.ptrace_scope` 1 or more, which
+is the kernel's own default; the Yama module must be enabled, or the file is
+missing). At 0 the code under test
 could attach to its ancestors, the bash and this program, and set the verdict.
 The program reads `/proc/sys/kernel/yama/ptrace_scope` first and, when the file
 is missing or says 0, exits 126 and says why on standard error: the check is
