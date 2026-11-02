@@ -121,6 +121,11 @@ var (
 	// starting is held while the test is started and `group` is set, so a
 	// signal that arrives in between still finds the group.
 	starting sync.Mutex
+	// forced is the status the time limit or a signal is exiting with, 0 until
+	// one acts. It is set before the group is killed, so the main path, which
+	// wakes from the death of bash, returns it and never reports the test as
+	// failed: whichever of the two exits first, the status is the same.
+	forced atomic.Int32
 )
 
 func main() {
@@ -154,15 +159,9 @@ func run(args []string, stdin *os.File) int {
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP)
 	go func() {
 		<-stop
-		starting.Lock()
-		killGroup()
-		os.Exit(exitTerminated)
+		endWith(exitTerminated)
 	}()
-	time.AfterFunc(limit, func() {
-		starting.Lock()
-		killGroup()
-		os.Exit(exitTimedOut)
-	})
+	time.AfterFunc(limit, func() { endWith(exitTimedOut) })
 	body, err := io.ReadAll(io.LimitReader(stdin, maxTestBytes+1))
 	_ = stdin.Close()
 	if err != nil || len(body) > maxTestBytes || strings.ContainsRune(string(body), 0) || !matches(body, digest) {
@@ -189,16 +188,35 @@ func run(args []string, stdin *os.File) int {
 	if err != nil {
 		return exitCannotRun
 	}
-	waitErr := cmd.Wait()
+	return outcome(cmd.Wait())
+}
+
+// endWith kills the test's group and exits with `code`, for the time limit and
+// for a signal. The first to act decides the status, and the main path returns
+// it too (see forced).
+func endWith(code int) {
+	starting.Lock()
+	forced.CompareAndSwap(0, int32(code))
 	killGroup()
-	if waitErr != nil {
-		var exited *exec.ExitError
-		if errors.As(waitErr, &exited) {
-			return exitFailed
-		}
-		return exitCannotRun
+	os.Exit(int(forced.Load()))
+}
+
+// outcome is the status for a test that bash has ended with waitErr: the one
+// the limit or a signal is exiting with when it was killed by one, else 0 for
+// an exit of 0, 1 for any other end of the test and 126 when it cannot be told.
+func outcome(waitErr error) int {
+	if code := forced.Load(); code != 0 {
+		return int(code)
 	}
-	return exitPassed
+	killGroup()
+	if waitErr == nil {
+		return exitPassed
+	}
+	var exited *exec.ExitError
+	if errors.As(waitErr, &exited) {
+		return exitFailed
+	}
+	return exitCannotRun
 }
 
 // parseLimit reads the third argument, the time limit in seconds, and whether

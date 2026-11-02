@@ -401,6 +401,69 @@ func TestTheTimeLimitIsTheHelpersAndKillsTheGroup(t *testing.T) {
 	_ = stdin.Close()
 }
 
+// A test that is ended by the limit, or by SIGTERM, is always 124, or 143:
+// never the 1 of a test that failed. The timer and the signal handler kill the
+// group and exit, and the main path wakes from the death of bash at the same
+// moment, so the status cannot depend on who gets to exit first.
+func TestAnEndedTestAlwaysGivesTheStatusOfWhatEndedIt(t *testing.T) {
+	body := "sleep 300\n"
+	d := digestOf(body)
+	for i := 0; i < 300; i++ {
+		// A limit that falls while bash is running, or just before it starts.
+		cmd := helper(d, t.TempDir(), "0.05")
+		cmd.Stdin = strings.NewReader(body)
+		if got := statusOf(t, cmd.Run()); got != exitTimedOut {
+			t.Fatalf("run %d: the limit ended the test and the status is %d, want %d", i, got, exitTimedOut)
+		}
+	}
+	for i := 0; i < 150; i++ {
+		ws := t.TempDir()
+		body := "echo $$ > pid\nsleep 300\n"
+		cmd := helper(digestOf(body), ws, "60")
+		cmd.Stdin = strings.NewReader(body)
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		if pidIn(ws, "pid") == 0 {
+			t.Fatalf("run %d: the test did not start", i)
+		}
+		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+			t.Fatal(err)
+		}
+		_ = cmd.Wait()
+		if got := cmd.ProcessState.ExitCode(); got != exitTerminated {
+			t.Fatalf("run %d: SIGTERM ended the test and the status is %d, want %d", i, got, exitTerminated)
+		}
+	}
+}
+
+// Once the limit or a signal has acted, the main path returns its status, not
+// the 1 of a test that bash ended by a kill.
+func TestTheMainPathReturnsWhatTheLimitOrASignalExitsWith(t *testing.T) {
+	failed := exec.Command("/bin/sh", "-c", "exit 3").Run()
+	if failed == nil {
+		t.Fatal("the stand-in did not fail")
+	}
+	defer forced.Store(0)
+	for _, tc := range []struct {
+		forced int32
+		err    error
+		want   int
+	}{
+		{0, nil, exitPassed},
+		{0, failed, exitFailed},
+		{0, errors.New("wait: no child"), exitCannotRun},
+		{exitTimedOut, failed, exitTimedOut},
+		{exitTerminated, failed, exitTerminated},
+		{exitTimedOut, nil, exitTimedOut},
+	} {
+		forced.Store(tc.forced)
+		if got := outcome(tc.err); got != tc.want {
+			t.Errorf("forced %d, wait %v: status %d, want %d", tc.forced, tc.err, got, tc.want)
+		}
+	}
+}
+
 // If the helper is killed outright, the kernel takes its bash with it.
 func TestAHelperThatIsKilledTakesItsBashWithIt(t *testing.T) {
 	ws := t.TempDir()

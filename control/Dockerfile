@@ -14,7 +14,8 @@ COPY hidden-test/ /src/
 ENV GOTOOLCHAIN=local GOFLAGS="-trimpath -mod=readonly" CGO_ENABLED=0
 RUN --network=none test -z "$(gofmt -l .)" && go vet ./... \
     && go build -ldflags='-s -w -buildid=' -o /out/mls-hidden-test . \
-    && ldd /out/mls-hidden-test 2>&1 | grep -q 'not a dynamic executable'
+    && ldd /out/mls-hidden-test 2>&1 | grep -q 'not a dynamic executable' \
+    && ! grep -aq MLS_HIDDEN_TEST_ /out/mls-hidden-test
 # Its tests, run as the learner runs: UID 1000, with the images' execute-only
 # bash installed at its path. CI builds this target on its own.
 FROM hidden-test AS hidden-test-tests
