@@ -46,8 +46,9 @@ command, and the terminal execs `bash` in it. The Pod runs the learner as:
   `SETGID` (`useradd`, `su`, `sudo`, `cron` and `chown` work with just those).
   `ping` also needs `NET_RAW`, which its file capability asks for;
 - **no network** beyond the Pod, so nothing in the image needs one at run time;
-- **a writable root filesystem**, with home in `/root`, which is where the
-  platform writes workspace files (epr-consulting/backend#226).
+- **a writable root filesystem**, with home in `/root`. The platform writes
+  workspace files into `/tmp/student/workspace`, as for lab-control
+  (epr-consulting/backend#226), and `~/workspace` links there.
 
 The image has no `VOLUME`, no `EXPOSE` and no lab content. Every image must pass
 `linux-smoke` under that contract, run as the Pod's command starts it. CI runs it
@@ -121,5 +122,6 @@ checks that `man` finds the pages of the tools a lab names.
   removes them) and would have no network to read them from.
 - **It carries no lab content**: no users, files, questions, answers or grading
   logic. The smoke test fails if `/home`, `/srv`, `/opt`, `/mnt`, `/media`,
-  `/workspace`, `/tmp` or `/var/tmp` hold anything, or `/root` holds more than the
-  shell's two dotfiles, or the image has a user beyond the system ones.
+  `/workspace` or `/var/tmp` hold anything, `/tmp` holds more than the empty
+  workspace, or `/root` holds more than the shell's two dotfiles and the link to
+  the workspace, or the image has a user beyond the system ones.
