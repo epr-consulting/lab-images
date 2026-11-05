@@ -27,11 +27,14 @@ if has_capability 21; then
   fail 'CAP_SYS_ADMIN is in the bounding set'
 fi
 # The machine starts with no lab content and no human users: the places a lab's
-# files would go are empty, and only the shell's own dotfiles are in root's home.
-for dir in /home /srv /opt /mnt /media /workspace /tmp /var/tmp; do
+# files would go are empty, /tmp holds only the empty workspace, and root's home
+# only the shell's own dotfiles and the link to the workspace.
+for dir in /home /srv /opt /mnt /media /workspace /var/tmp; do
   [[ ! -e $dir || -z $(ls -A "$dir") ]] || fail "$dir is not empty"
 done
-[[ $(ls -A /root | tr '\n' ' ') == '.bashrc .profile ' ]] || fail "/root holds $(ls -A /root | tr '\n' ' ')"
+[[ $(find /tmp -mindepth 1 | sort | tr '\n' ' ') == '/tmp/student /tmp/student/workspace ' ]] || fail "/tmp holds $(find /tmp -mindepth 1 | tr '\n' ' ')"
+[[ $(ls -A /root | tr '\n' ' ') == '.bashrc .profile workspace ' ]] || fail "/root holds $(ls -A /root | tr '\n' ' ')"
+[[ $(readlink /root/workspace) == /tmp/student/workspace ]] || fail '~/workspace is not /tmp/student/workspace'
 [[ -z $(awk -F: '$3 >= 1000 && $3 < 65534' /etc/passwd) ]] || fail 'The image has a human user'
 # No systemd, no build toolchain: a lab that needs them has its own image.
 for absent in systemctl systemd gcc cc make; do
@@ -65,13 +68,14 @@ dig -v 2>/dev/null
 [[ $(readlink -f "$(command -v awk)") == */gawk ]]
 
 # --- Working with files --------------------------------------------------------
-# The platform writes workspace files with install from stdin and reads them back
-# with a bounded head -c, never through a shell, in the learner's home
-# (epr-consulting/backend#226): for this image, the machine is the workstation.
-printf 'smoke-file\n' | install -D -T -m 0640 /dev/stdin "$HOME/workspace/a/b.txt"
-[[ $(stat -c %a "$HOME/workspace/a/b.txt") == 640 ]]
-[[ $(head -c 65537 "$HOME/workspace/a/b.txt") == smoke-file ]]
-rm -rf "$HOME/workspace"
+# The platform writes workspace files with install from stdin into
+# /tmp/student/workspace and reads them back with a bounded head -c, never through
+# a shell (epr-consulting/backend#226): for this image, the machine is the
+# workstation, and the learner finds the files in ~/workspace.
+printf 'smoke-file\n' | install -D -T -m 0640 /dev/stdin /tmp/student/workspace/a/b.txt
+[[ $(stat -c %a ~/workspace/a/b.txt) == 640 ]]
+[[ $(head -c 65537 ~/workspace/a/b.txt) == smoke-file ]]
+rm -rf /tmp/student/workspace/a
 cd "$scratch"
 mkdir src
 printf 'one two\nthree four\n' > src/words

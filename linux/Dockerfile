@@ -53,6 +53,9 @@ RUN printf '%s\n' '' \
 # lab-control. The learner is root, so their home is /root.
 ENV LANG=C.UTF-8 TERM=xterm-256color
 WORKDIR /root
+# The platform places and grades workspace files in /tmp/student/workspace, as in
+# lab-control (epr-consulting/backend#226); root's ~/workspace is the same place.
+RUN mkdir -p /tmp/student/workspace && ln -s /tmp/student/workspace /root/workspace
 LABEL org.opencontainers.image.source="https://github.com/epr-consulting/lab-images"
 COPY --chmod=0755 smoke.sh /usr/local/bin/linux-smoke
 # The Pod's command is "tini -- sleep infinity"; the image starts the same way.
