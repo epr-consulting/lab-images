@@ -1,16 +1,17 @@
 # MyLabSkills lab images
 
 These are the public container images MyLabSkills uses for lab environments:
-the learner's terminal, the CLIs the lab worker creates environments with and
-the toolchains of project labs today, more lab images later. Each image lives
-in its own directory and has its own Dockerfile, pinned downloads, smoke test
-and CI workflow.
+the learner's terminal, the CLIs the lab worker creates environments with, the
+toolchains of project labs and the Linux machine of Linux labs today, more lab
+images later. Each image lives in its own directory and has its own Dockerfile,
+pinned downloads, smoke test and CI workflow.
 
 | Directory | Image | Purpose |
 | --- | --- | --- |
 | [`control/`](control/) | `ghcr.io/epr-consulting/lab-control` | The learner's terminal pod (k8s, agent, docker, linux and dev tiers) |
 | [`cli/`](cli/) | `ghcr.io/epr-consulting/lab-cli` | The vCluster and Helm CLIs the lab worker runs, rebuilt with a patched Go toolchain |
 | [`project/`](project/) | `ghcr.io/epr-consulting/lab-project` | The toolchains of project labs (CI/CD, IaC, MLOps, web and mobile tiers) |
+| [`linux/`](linux/) | `ghcr.io/epr-consulting/lab-linux` | The machine of a Linux basic lab: Ubuntu 24.04 with an admin toolset, one container per session, the learner is root |
 
 ## Tools, never content
 
@@ -23,7 +24,9 @@ Both control and project images also carry `mls-hidden-test`, the runner that
 gives a hidden test's verdict as its exit status, built from one source in
 [`control/hidden-test/`](control/hidden-test/), and the execute-only
 `/usr/local/libexec/mls-bash` it runs the test with. Both are mode 0711: the
-learner can run them, not read them.
+learner can run them, not read them. The Linux image has neither: its learner is
+root, who reads any file whatever its mode, and a Linux lab's grading brings its
+own static busybox ([`linux/`](linux/README.md#what-differs-from-lab-controls-contract)).
 
 ## Publishing and use
 

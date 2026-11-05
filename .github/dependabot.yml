@@ -40,3 +40,16 @@ updates:
       default-days: 7
     commit-message:
       prefix: chore(deps)
+  # linux/ has only its Ubuntu base image to propose, as a new digest of the 24.04
+  # LTS line: the next LTS is moved by hand, and the interim releases are skipped.
+  - package-ecosystem: docker
+    directory: /linux
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore(deps)
+    ignore:
+      - dependency-name: ubuntu
+        update-types: [version-update:semver-major, version-update:semver-minor]
