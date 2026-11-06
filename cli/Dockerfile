@@ -16,7 +16,7 @@ ARG VCLUSTER_VERSION=0.37.2
 ARG VCLUSTER_SOURCE_COMMIT=5d9d4284012e635f433edc8ea442799ca868d674
 ARG VCLUSTER_SOURCE_SHA256=115b12724f7e68900903272b2e99757d981571242d5ed499902abfabec1ded86
 ARG VCLUSTER_CHART_SHA256=0e3e1df3802a1199653930cfadcf52ba309ea7d5282a1a8541452bea8a9cf707
-ARG CLI_X_NET_VERSION=v0.60.0
+ARG CLI_X_NET_VERSION=v0.62.0
 ARG CLI_COMPRESS_VERSION=v1.18.7
 ARG CLI_GO_JOSE_VERSION=v4.1.6
 WORKDIR /src
@@ -34,19 +34,25 @@ RUN test "$TARGETOS" = "linux" && \
     curl -fL --retry 3 -o "pkg/embed/chart/vcluster-${VCLUSTER_VERSION}.tgz" \
       "https://charts.loft.sh/charts/vcluster-${VCLUSTER_VERSION}.tgz" && \
     echo "$VCLUSTER_CHART_SHA256  pkg/embed/chart/vcluster-${VCLUSTER_VERSION}.tgz" | sha256sum -c -
-# Patch only the vendored HTTP/2 module. The mirror's test-only module graph
-# includes private repositories; rebuilding that graph requires credentials.
-# x/net v0.60.0 keeps the existing vendored x/* dependency versions and Go floor.
-# Download outside that graph through Go's checksum database, then verify the
-# exact module selected by the offline build. No private credential is needed.
-RUN test "$CLI_X_NET_VERSION" = "v0.60.0" && \
-    test "$(go list -mod=vendor -m golang.org/x/net)" = "golang.org/x/net v0.59.0" && \
-    (cd /tmp && GOWORK=off go mod download "golang.org/x/net@${CLI_X_NET_VERSION}") && \
-    go mod edit "-require=golang.org/x/net@${CLI_X_NET_VERSION}" && \
-    sed -i "s|# golang.org/x/net v0.59.0|# golang.org/x/net ${CLI_X_NET_VERSION}|" vendor/modules.txt && \
-    rm -rf vendor/golang.org/x/net && \
-    cp -a "$(go env GOMODCACHE)/golang.org/x/net@${CLI_X_NET_VERSION}" vendor/golang.org/x/net && \
-    test "$(go list -mod=vendor -m golang.org/x/net)" = "golang.org/x/net ${CLI_X_NET_VERSION}"
+# Patch only the vendored golang.org/x modules. The mirror's test-only module
+# graph includes private repositories; rebuilding that graph requires
+# credentials. x/net v0.62.0 (CVE-2026-78661: a denial of service through
+# crafted HTML) requires the next x/crypto, x/sys, x/term and x/text, so the
+# five move together; all keep the Go 1.26.0 floor. Download outside that graph
+# through Go's checksum database, then verify the exact module selected by the
+# offline build. No private credential is needed.
+RUN test "$CLI_X_NET_VERSION" = "v0.62.0" && \
+    for raise in "net v0.59.0 ${CLI_X_NET_VERSION}" "crypto v0.57.0 v0.58.0" "sys v0.48.0 v0.49.0" \
+                 "term v0.46.0 v0.47.0" "text v0.42.0 v0.43.0"; do \
+      set -- $raise && module="golang.org/x/$1" && \
+      test "$(go list -mod=vendor -m "$module")" = "$module $2" && \
+      (cd /tmp && GOWORK=off go mod download "$module@$3") && \
+      go mod edit "-require=$module@$3" && \
+      sed -i "s|# $module $2|# $module $3|" vendor/modules.txt && \
+      rm -rf "vendor/$module" && \
+      cp -a "$(go env GOMODCACHE)/$module@$3" "vendor/$module" && \
+      test "$(go list -mod=vendor -m "$module")" = "$module $3" || exit 1; \
+    done
 # Patch the vendored compression module the same way (CVE-2026-63209).
 # v1.18.7 has no dependencies and keeps v1.18.5's Go floor, so the vendored
 # graph and the `## explicit; go 1.24` marker stay valid.
@@ -74,8 +80,8 @@ RUN --network=none CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" \
       -ldflags "-s -w -X main.version=${VCLUSTER_VERSION} -X github.com/loft-sh/vcluster/pkg/telemetry.SyncerVersion=${VCLUSTER_VERSION}" \
       -o /usr/local/bin/vcluster ./cmd/vclusterctl && \
     case "$TARGETARCH" in \
-      amd64) VCLUSTER_BINARY_SHA256=fb37b896bb41129adccb1c409e53472db9703525ad4ba28ab4be66ecf5fe48ee ;; \
-      arm64) VCLUSTER_BINARY_SHA256=893cd7ec576224c815f0074b96b70e62372a9e9dd313b8d2aa441dea1b2be165 ;; \
+      amd64) VCLUSTER_BINARY_SHA256=37556b9a3cc1e93c2a8fb6341d829c43d9bb835ee79d2234c5ba8f9e44462df5 ;; \
+      arm64) VCLUSTER_BINARY_SHA256=1c3e24f9ecf9e0f1fa1903bd97ef5345be746d0823643a0e2a3411b8ec78be30 ;; \
     esac && \
     echo "$VCLUSTER_BINARY_SHA256  /usr/local/bin/vcluster" | sha256sum -c -
 
@@ -84,7 +90,7 @@ ENV GOTOOLCHAIN=local GOMAXPROCS=4
 ARG TARGETOS=linux
 ARG TARGETARCH
 ARG HELM_VERSION=3.22.0
-ARG CLI_X_NET_VERSION=v0.60.0
+ARG CLI_X_NET_VERSION=v0.62.0
 ARG HELM_SOURCE_COMMIT=144ca65f8501953fa8b41cd1d37c7223051c85b7
 ARG HELM_SOURCE_SHA256=b418a3db1021d5ec9b4f906da1b0a97ce85fab319d89a7046842feef8e00eeba
 WORKDIR /src
@@ -98,7 +104,7 @@ RUN test "$TARGETOS" = "linux" && \
     echo "$HELM_SOURCE_SHA256  /tmp/helm-source.tar.gz" | sha256sum -c - && \
     tar -xzf /tmp/helm-source.tar.gz --strip-components=1 && \
     rm /tmp/helm-source.tar.gz && \
-    test "$CLI_X_NET_VERSION" = "v0.60.0" && \
+    test "$CLI_X_NET_VERSION" = "v0.62.0" && \
     go get "golang.org/x/net@${CLI_X_NET_VERSION}" && \
     go mod download && go mod verify && \
     test "$(go list -mod=readonly -m golang.org/x/net)" = "golang.org/x/net ${CLI_X_NET_VERSION}"
@@ -108,8 +114,8 @@ RUN --network=none CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" \
       -ldflags "-s -w -X helm.sh/helm/v3/internal/version.version=v${HELM_VERSION} -X helm.sh/helm/v3/internal/version.gitCommit=${HELM_SOURCE_COMMIT} -X helm.sh/helm/v3/internal/version.gitTreeState=clean -X helm.sh/helm/v3/pkg/lint/rules.k8sVersionMajor=1 -X helm.sh/helm/v3/pkg/lint/rules.k8sVersionMinor=37 -X helm.sh/helm/v3/pkg/chartutil.k8sVersionMajor=1 -X helm.sh/helm/v3/pkg/chartutil.k8sVersionMinor=37" \
       -o /usr/local/bin/helm ./cmd/helm && \
     case "$TARGETARCH" in \
-      amd64) HELM_BINARY_SHA256=7b6c0ae9b29c48ab2553b9477f92af6eebb2cbcaf37287a99c3772f9ae0ce8bf ;; \
-      arm64) HELM_BINARY_SHA256=78eefeacd6222d1e4a8ce4723e6ab5d9b3625ef4ccf3e98ca0b2c7afbd503261 ;; \
+      amd64) HELM_BINARY_SHA256=7742eaa4836c89a420b481002b45567005b2de76fbd318b5c0bed8ddb67a9c92 ;; \
+      arm64) HELM_BINARY_SHA256=6b40fff48a685c0eddfd2031dd5d15fcf7735d72b9904d9224bc290fd2e33364 ;; \
     esac && \
     echo "$HELM_BINARY_SHA256  /usr/local/bin/helm" | sha256sum -c -
 

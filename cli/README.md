@@ -13,7 +13,8 @@ and the image holds only the two binaries at its root:
 
 The upstream release binaries were compiled with Go releases that predate
 security fixes. Both tools are rebuilt from their exact upstream sources with
-Go 1.26.10, and their vendored `golang.org/x/net` (and vCluster's
+Go 1.26.10, and their vendored `golang.org/x/net` (with the `x/crypto`,
+`x/sys`, `x/term` and `x/text` it requires, and vCluster's
 `klauspost/compress` and `go-jose/go-jose/v4`) are raised to fixed versions. Each binary is checked
 against a pinned per-architecture SHA-256 at build time, so the build is
 reproducible: any change to the toolchain, sources or flags fails until the
