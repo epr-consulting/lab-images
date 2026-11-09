@@ -24,7 +24,7 @@ USER 1000:1000
 ENV HOME=/tmp GOCACHE=/tmp/gocache
 RUN --network=none --mount=type=tmpfs,target=/tmp go test -count=1 ./...
 
-FROM debian:trixie-slim@sha256:d7e12182ce18b85b93007c1dedf31f2d29e01ccf3182cc4017c709b6259bc132 AS base
+FROM debian:trixie-slim@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4 AS base
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bash bash-completion ca-certificates curl openssl vim nano git procps iproute2 iputils-ping \
     dnsutils netcat-openbsd less jq tini \
