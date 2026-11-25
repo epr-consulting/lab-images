@@ -13,6 +13,10 @@ pinned downloads, smoke test and CI workflow.
 | [`project/`](project/) | `ghcr.io/epr-consulting/lab-project` | The toolchains of project labs (CI/CD, IaC, MLOps, web and mobile tiers) |
 | [`linux/`](linux/) | `ghcr.io/epr-consulting/lab-linux` | The machine of a Linux basic lab: Ubuntu 24.04 with an admin toolset, one container per session, the learner is root |
 
+The [Kata guest-kernel build](kata-kernel/) additionally produces versioned,
+checksum-pinned public kernel archives with corresponding sources. Its image is
+a native CI build vehicle; AWS boot and isolation still need qualification.
+
 ## Tools, never content
 
 These images contain tools only. Lab questions, expected answers, solutions,

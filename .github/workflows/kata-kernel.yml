@@ -1,0 +1,95 @@
+name: kata-guest-kernel
+on:
+  pull_request:
+    branches: [main]
+    paths: ['kata-kernel/**', '.github/workflows/kata-kernel.yml']
+  push:
+    branches: [main]
+    paths: ['kata-kernel/**', '.github/workflows/kata-kernel.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kata-kernel-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - {arch: amd64, runner: ubuntu-24.04}
+          - {arch: arm64, runner: ubuntu-24.04-arm}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4.4.0
+      - name: Build the native guest kernel from verified sources
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: kata-kernel
+          load: true
+          tags: kata-kernel-test:native
+          cache-from: type=gha,scope=kata-kernel-${{ matrix.arch }}
+          cache-to: type=gha,mode=min,scope=kata-kernel-${{ matrix.arch }}
+      - name: Verify native architecture, requested kernel features and artifact hashes
+        run: docker run --rm --network none --cap-drop ALL --read-only kata-kernel-test:native
+      - name: Package the tested runtime artifact
+        run: bash kata-kernel/package.sh kata-kernel-test:native "$RUNNER_TEMP/kernel-package"
+      - name: Retain only main's small runtime artifacts for publication
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: kata-kernel-${{ matrix.arch }}
+          path: ${{ runner.temp }}/kernel-package/*
+          retention-days: 1
+          if-no-files-found: error
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: kata-kernel-*
+          path: release
+          merge-multiple: true
+      - name: Verify native archives and fetch the exact corresponding sources
+        run: |
+          set -euo pipefail
+          source kata-kernel/pins.env
+          cd release
+          sha256sum --check ./*.sha256
+          curl --fail --location --silent --show-error --retry 3 --proto '=https' \
+            "https://codeload.github.com/kata-containers/kata-containers/tar.gz/$KATA_COMMIT" --output kata-source.tar.gz
+          echo "$KATA_SOURCE_SHA256  kata-source.tar.gz" | sha256sum --check
+          curl --fail --location --silent --show-error --retry 3 --proto '=https' \
+            "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$KERNEL_VERSION.tar.xz" --output "linux-$KERNEL_VERSION.tar.xz"
+          echo "$KERNEL_SOURCE_SHA256  linux-$KERNEL_VERSION.tar.xz" | sha256sum --check
+          git -C .. archive --format=tar.gz --output="$PWD/kernel-build-source.tar.gz" HEAD kata-kernel LICENSE
+          sha256sum kata-source.tar.gz "linux-$KERNEL_VERSION.tar.xz" kernel-build-source.tar.gz > corresponding-source.sha256
+      - name: Publish versioned public assets only after both native builds pass
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="kata-kernel-$GITHUB_SHA"
+          # A successful release is never overwritten or moved by a rerun.
+          if gh release view "$tag" >/dev/null 2>&1; then
+            verified=$(mktemp -d)
+            trap 'rm -rf "$verified"' EXIT
+            gh release download "$tag" --dir "$verified"
+            for artifact in release/*; do
+              cmp --silent "$artifact" "$verified/$(basename "$artifact")"
+            done
+            echo 'Existing source release assets match; nothing overwritten.'
+            exit 0
+          fi
+          gh release create "$tag" release/* --target "$GITHUB_SHA" \
+            --title "Kata 4.3.1 guest kernel 6.18.56 ($GITHUB_SHA)" \
+            --notes 'Native AMD64/ARM64 kernel artifacts, feature/hash checks, complete corresponding Linux/Kata sources and custom build recipe. Pin the downloaded archive SHA-256. AWS VM boot, isolation, guest tasks and timings require separate qualification; this release does not certify them.'
